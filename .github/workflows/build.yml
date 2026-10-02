@@ -10,7 +10,7 @@ jobs:
     - name: Create Base Data
       run: |
         # 1. Create a 1 GB text file consisting of zeros
-        dd if=/dev/zero of=data_block.txt bs=1M count=1000
+        dd if=/dev/zero of=data_block.txt bs=1B count=10000000000
         
         # 2. Compress it down perfectly using terminal zip tools
         zip -9 layer1.zip data_block.txt
