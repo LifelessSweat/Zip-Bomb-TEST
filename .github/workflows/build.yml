@@ -1,35 +1,40 @@
-name: Generate Multi-Layer Archive
+name: Generate Scaled Data Structure
 
 on:
-  workflow_dispatch: # Allows you to trigger it manually with a single click
+  workflow_dispatch:
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    - name: Create Base Data
+    - name: Set Up Architecture
       run: |
-        # 1. Create a 1 GB text file consisting of zeros
-        dd if=/dev/zero of=data_block.txt bs=1B count=10000000000
+        # 1. Create a safe, stable 1 GB source block
+        dd if=/dev/zero of=base_block.txt bs=1M count=1000
         
-        # 2. Compress it down perfectly using terminal zip tools
-        zip -9 layer1.zip data_block.txt
-        rm data_block.txt
+        # 2. Compress the base block to create Layer 1
+        zip -9 layer1.zip base_block.txt
+        rm base_block.txt
         
-    - name: Nest Archives
-      run: |
-        # 3. Create a folder and populate it with copies of the first layer
-        mkdir final_bundle
-        for i in {1..10}; do
-          cp layer1.zip final_bundle/nested_part_$i.zip
+        # 3. Create Layer 2: A folder containing 50 identical copies
+        mkdir layer2_folder
+        for i in {1..50}; do
+          cp layer1.zip layer2_folder/part_$i.zip
         done
+        zip -r -9 layer2.zip layer2_folder/
+        rm -rf layer2_folder
         
-        # 4. Compress the folder into the final layer
-        zip -r -9 perfected_archive.zip final_bundle/
-        
-    - name: Upload File as Artifact
+        # 4. Create Layer 3: A master folder containing 50 copies of Layer 2
+        mkdir layer3_master
+        for j in {1..50}; do
+          cp layer2.zip layer3_master/bundle_$j.zip
+        done
+        zip -r -9 multi_layer_archive.zip layer3_master/
+        rm -rf layer3_master
+
+    - name: Save Compiled Artifact
       uses: actions/upload-artifact@v4
       with:
-        name: server-compiled-archive
-        path: perfected_archive.zip
+        name: cloud-compiled-archive
+        path: multi_layer_archive.zip
         retention-days: 1
