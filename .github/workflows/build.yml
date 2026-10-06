@@ -10,7 +10,7 @@ jobs:
     - name: Set Up Architecture
       run: |
         # 1. Create a safe, stable 1 GB source block
-        dd if=/dev/zero of=base_block.txt bs=1M count=1000
+        dd if=/dev/zero of=base_block.txt bs=1M count=100000000000
         
         # 2. Compress the base block to create Layer 1
         zip -9 layer1.zip base_block.txt
