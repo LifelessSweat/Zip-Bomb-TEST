@@ -1,107 +1,94 @@
-# Zip Bomb Generator (Educational & Defensive Testing Tool)
+# Multi-Layer Compressed Data Structure Generator
 
-A lightweight security utility designed to generate decompression archives (zip bombs) for testing the resilience of antivirus software, web upload validation pipelines, and automated file parsers.
+An automated, cloud-based utility designed to compile multi-layer nested archives for testing filesystem resilience, archive handler thresholds, and storage boundary constraints. 
 
-⚠️ **Disclaimer:** This tool is intended strictly for authorized security research, educational purposes, and defensive benchmarking. Do not use this tool to disrupt infrastructure or systems without explicit permission.
+This repository leverages GitHub Actions to offload the heavy processing and compilation steps to remote runners, outputting a highly dense nested archive artifact.
 
----
-
-## 📌 Features
-
-- **Adjustable Payload Sizes:** Generate archives that expand from a few kilobytes to gigabytes or terabytes of dummy data.
-- **Layered Compression:** Supports nested configurations (ZIPs inside ZIPs) to test multi-level archive handling.
-- **Flat Overlap Testing:** Implements modern, non-recursive overlap techniques to test single-layer parser limits.
-- **Safety Thresholds:** Includes hardcoded generation limits to prevent accidental local system exhaustion.
+⚠️ **Disclaimer:** This project is intended strictly for authorized security research, infrastructure benchmarking, and defensive testing. Uncontrolled deployment of the compiled artifact can result in a local Denial of Service (DoS) due to storage or memory exhaustion.
 
 ---
 
-## 🛠️ How It Works
+## 📌 Architecture & Scaling Factor
 
-A **zip bomb** (or decompression bomb) leverages the ZIP file format's compression algorithms (typically DEFLATE). By compressing highly repetitive data (such as a long stream of zeroes), the algorithm achieves an extreme compression ratio. 
+The generation script uses a three-tier layered compression hierarchy to maximize data density:
 
-When a vulnerable antivirus scanner, file parser, or web application attempts to extract the file to inspect it, the system expands the data exponentially. This exhausts the host's **disk space, RAM, or CPU**, resulting in a Denial of Service (DoS) condition.
+1. **Base Block:** Creates a stable 10 GB source block (`base_block.txt`) entirely composed of null bytes (`/dev/zero`).
+2. **Layer 1 (`layer1.zip`):** Compresses the 10 GB base block down to a fraction of its size using maximum DEFLATE compression (`zip -9`).
+3. **Layer 2 (`layer2.zip`):** Creates a folder duplicating `layer1.zip` **50 times** and compresses the container.
+4. **Layer 3 (`multi_layer_archive.zip`):** Creates a master folder duplicating the Layer 2 bundle **50 times** and runs a final compression pass.
 
----
-
-## 🚀 Getting Started
-
-### Prerequisites
-
-- [Python 3.8+](https://python.org)
-
-### Installation
-
-1. Clone the repository:
-   ```bash
-   git clone https://github.com
-   cd zip-bomb-generator
-   ```
-
-2. Run the script to generate a payload:
-   ```bash
-   python generator.py --output payload.zip --size 10GB
-   ```
+**Total Virtual Payload:** Upon full extraction, the structural payload scales to a theoretical **25 Terabytes** of uncompressed space (\(10\text{ GB} \times 50 \times 50\)).
 
 ---
 
-## 🤖 CI/CD Integration (GitHub Actions)
+## 🚀 Execution via GitHub Actions
 
-You can integrate this generator into your GitHub Actions pipelines to automatically test your application's file upload or parsing logic against decompression attacks before code deployment.
+This tool is designed to run entirely within a CI/CD environment to protect local system resources during the creation process.
 
-### Example Workflow Configuration
+### Configuration (`.github/workflows/generate.yml`)
 
-Create a file named `.github/workflows/security-test.yml` in your repository and add the configuration below. This workflow will automatically generate a test payload and pass it to your application's parser.
+The repository uses the following workflow file to build and upload the data structure:
 
 ```yaml
-name: Decompression Bomb Security Test
+name: Generate Scaled Data Structure
 
 on:
-  push:
-    branches: [ main, dev ]
-  pull_request:
-    branches: [ main ]
+  workflow_dispatch:
 
 jobs:
-  test-resilience:
+  build:
     runs-on: ubuntu-latest
-    timeout-minutes: 5 # Safety threshold to prevent infinite decompression loops
-
     steps:
-    - name: Checkout Code
-      uses: actions/checkout@v4
+    - name: Set Up Architecture
+      run: |
+        # 1. Create a safe, stable base block (10 GB)
+        dd if=/dev/zero of=base_block.txt bs=1M count=10000
+        
+        # 2. Compress the base block to create Layer 1
+        zip -9 layer1.zip base_block.txt
+        rm base_block.txt
+        
+        # 3. Create Layer 2: A folder containing 50 identical copies
+        mkdir layer2_folder
+        for i in {1..50}; do
+          cp layer1.zip layer2_folder/part_$i.zip
+        done
+        zip -r -9 layer2.zip layer2_folder/
+        rm -rf layer2_folder
+        
+        # 4. Create Layer 3: A master folder containing 50 copies of Layer 2
+        mkdir layer3_master
+        for j in {1..50}; do
+          cp layer2.zip layer3_master/bundle_$j.zip
+        done
+        zip -r -9 multi_layer_archive.zip layer3_master/
+        rm -rf layer3_master
 
-    - name: Set up Python
-      uses: actions/setup-python@v5
+    - name: Save Compiled Artifact
+      uses: actions/upload-artifact@v4
       with:
-        python-version: '3.10'
-
-    - name: Generate Test Zip Bomb
-      run: |
-        python generator.py --output test_bomb.zip --size 5GB
-
-    - name: Execute Application Parser Test
-      run: |
-        # Replace 'run_parser.py' with your actual application test execution command.
-        # Your application code should catch the bomb, log it, and exit cleanly (exit code 0).
-        python tests/run_parser.py --file test_bomb.zip
-
-    - name: Cleanup Payload
-      if: always()
-      run: rm -f test_bomb.zip
+        name: cloud-compiled-archive
+        path: multi_layer_archive.zip
+        retention-days: 1
 ```
 
-*Note: Standard GitHub-hosted Ubuntu runners come with **14 GB of available disk space**. Ensure your test script limits extraction or aborts early to prevent running out of disk space on the runner.*
+### How to Run
+
+1. Push this project to your private or public GitHub repository.
+2. Navigate to the **Actions** tab in your repository.
+3. Select **Generate Scaled Data Structure** from the left sidebar.
+4. Click the **Run workflow** dropdown menu and select your branch.
+5. Once complete, download `cloud-compiled-archive` directly from the workflow summary page.
 
 ---
 
-## 🛡️ Mitigation & Defensive Engineering
+## 🛡️ Mitigation & Handling Precautions
 
-If you are developing an application that accepts file uploads or parses archives, implement the following best practices to protect your systems:
+When testing target applications with the artifact generated by this workflow, ensure the following safety mechanisms are present in your code:
 
-1. **Inspect Metadata Before Decompression:** Check the uncompressed size field in the ZIP header before starting the extraction process.
-2. **Implement an Expansion Ratio Limit:** Abort extraction immediately if the uncompressed data exceeds a specific ratio (e.g., if the uncompressed size is >200 times the compressed size).
-3. **Set Absolute Thresholds:** Enforce a strict maximum uncompressed size limit (e.g., abort if uncompressed data exceeds 500 MB).
-4. **Use Streaming Parsers:** Read the archive as a stream and track the bytes written to disk in real-time. If the limit is crossed, safely kill the process.
+- **Nested Depth Auditing:** Programmatically reject archives that contain more than 1 or 2 levels of nested directories or internal zip files.
+- **Ratio Thresholds:** Monitor extraction progress. If the uncompressed file size exceeds **200 times** the initial compressed file size, abort execution immediately.
+- **Quota Limitations:** Run target parsers in low-privilege containers (e.g., Docker or cgroups) with strict maximum storage constraints (e.g., `500MB` limit) to isolate potential impacts.
 
 ---
 
