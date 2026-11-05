@@ -18,7 +18,7 @@ jobs:
         
         # 3. Create Layer 2: A folder containing 50 identical copies
         mkdir layer2_folder
-        for i in {1..65535}; do
+        for i in {1..5000}; do
           cp layer1.zip layer2_folder/part_$i.zip
         done
         zip -r -9 layer2.zip layer2_folder/
@@ -26,7 +26,7 @@ jobs:
         
         # 4. Create Layer 3: A master folder containing 50 copies of Layer 2
         mkdir layer3_master
-        for j in {1..65535}; do
+        for j in {1..5000}; do
           cp layer2.zip layer3_master/bundle_$j.zip
         done
         zip -r -9 multi_layer_archive.zip layer3_master/
